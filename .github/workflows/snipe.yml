@@ -1,0 +1,46 @@
+name: kalshi-snipe
+# Runs the announcement-snipe bot on GitHub's cloud — no local machine needed.
+on:
+  schedule:
+    - cron: "*/30 * * * *"     # every 30 min (GitHub may delay; min allowed is 5)
+  workflow_dispatch:            # lets you run it manually from the Actions tab
+
+permissions:
+  contents: write               # to persist snipe_state.json (dedupe + spend) back
+
+concurrency:                    # never run two copies at once
+  group: snipe
+  cancel-in-progress: false
+
+jobs:
+  snipe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install mcp httpx cryptography
+      - name: Write private key from secret
+        run: |
+          mkdir -p $HOME/.kalshi
+          echo "${{ secrets.KALSHI_PRIVATE_KEY_B64 }}" | base64 -d > $HOME/.kalshi/k.pem
+          chmod 600 $HOME/.kalshi/k.pem
+      - name: Run snipe bot
+        env:
+          KALSHI_ENV: prod
+          KALSHI_API_KEY_ID: ${{ secrets.KALSHI_API_KEY_ID }}
+          KALSHI_PRIVATE_KEY_PATH: /home/runner/.kalshi/k.pem
+          SNIPE_USD: "5"
+          SNIPE_MAX_EXPOSURE: "19"
+          SNIPE_FLOOR: "2"
+        run: python snipe_bot.py
+      - name: Persist state (dedupe + spend)
+        if: always()
+        run: |
+          git config user.name "snipe-bot"
+          git config user.email "snipe-bot@users.noreply.github.com"
+          git add snipe_state.json 2>/dev/null || true
+          git commit -m "bot: update state [skip ci]" 2>/dev/null || true
+          git push 2>/dev/null || true
