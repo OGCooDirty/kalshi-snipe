@@ -30,16 +30,39 @@ MAX_EXPOSURE = float(os.environ.get("SNIPE_MAX_EXPOSURE", "15"))
 FLOOR = float(os.environ.get("SNIPE_FLOOR", "20"))
 PRICE_HI, PRICE_LO = 0.90, 0.02
 DRY_RUN = os.environ.get("SNIPE_DRY_RUN") == "1"
-MAX_EVENTS_PER_SERIES = int(os.environ.get("SNIPE_MAX_PER_SERIES", "20"))
+MAX_EVENTS_PER_SERIES = int(os.environ.get("SNIPE_MAX_PER_SERIES", "40"))
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 STATE_F = os.path.join(HERE, "snipe_state.json")
 LOG_F = os.path.join(HERE, "snipe.log")
 
-# Hand-picked one-off events.
+# Hand-picked one-off events (distinctive context keyword each).
 TARGETS = [
     {"event": "KXWORLDCUPHALFTIME-26", "context": ["halftime", "world cup"],
      "query": '%22world+cup%22+halftime+(perform+OR+lineup+OR+headline)'},
+    # Castings
+    {"event": "KXBOND-30", "context": ["james bond", "007"],
+     "query": 'James+Bond+(cast+OR+casting+OR+actor)'},
+    {"event": "KXPERFORMROLEMILESMORALES", "context": ["miles morales"],
+     "query": 'Miles+Morales+(cast+OR+casting+OR+Spider-Man)'},
+    {"event": "KXROLEINPRODUCTIONDOOMSDAY", "context": ["doomsday", "avengers"],
+     "query": 'Avengers+Doomsday+cast'},
+    # Event headliners / performers
+    {"event": "KXROLEATEVENTCOACHELLA-27DEC31", "context": ["coachella"],
+     "query": 'Coachella+2027+(headline+OR+lineup)'},
+    {"event": "KXROLEATEVENTLOLLA-26DEC31", "context": ["lollapalooza"],
+     "query": 'Lollapalooza+2026+(headline+OR+lineup)'},
+    {"event": "KXROLEATEVENTROLLING-27DEC31", "context": ["rolling loud"],
+     "query": 'Rolling+Loud+(headline+OR+lineup)'},
+    {"event": "KXPERFORMVS-26", "context": ["victoria's secret"],
+     "query": "Victoria%27s+Secret+Fashion+Show+(perform+OR+headline)"},
+    # Corporate
+    {"event": "KXNBA2KCOVER-27", "context": ["2k27", "nba 2k"],
+     "query": 'NBA+2K27+cover+athlete'},
+    {"event": "KXNEWROLEGS-35DEC", "context": ["goldman"],
+     "query": 'Goldman+Sachs+CEO'},
+    {"event": "KXNEWROLEX-27JAN", "context": ["ceo of x", "x ceo"],
+     "query": 'CEO+of+X+(named+OR+appointed)'},
 ]
 
 # Whole categories — every open event in the series becomes a target. `strip`
@@ -55,6 +78,10 @@ SERIES = [
      "query": "NHL+(traded+OR+signs)"},
     {"series": "KXJOINCLUB", "strip": ": next club",
      "query": "football+transfer+(signs+OR+completes+OR+joins)"},
+    {"series": "KXJOINLEAGUE", "strip": ": next club (league)",
+     "query": "football+transfer+(signs+OR+completes+OR+joins)"},
+    {"series": "KXWNBANEXTTEAM", "strip": "'s next team",
+     "query": "WNBA+(traded+OR+signs+OR+signing)"},
 ]
 
 CREDIBLE = ["fifa.com", "reuters.com", "apnews.com", "billboard.com", "cnn.com",
@@ -79,9 +106,10 @@ CONFIRM = [
     "signs for", "signed for", "completes move to", "completes a move to",
     "completes transfer", "officially joins", "unveiled as", "joins on a",
     "completes the signing", "completes signing of",
-    # hires
+    # hires / appointments
     "named head coach", "hired as", "named manager", "introduced as",
-    "named the new",
+    "named the new", "appointed as", "appointed ceo", "named ceo",
+    "named as the next", "will become the next", "to lead as",
     # castings
     "cast as", "to star as", "joins the cast", "has been cast",
 ]
