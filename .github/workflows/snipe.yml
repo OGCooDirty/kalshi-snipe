@@ -2,7 +2,7 @@ name: kalshi-snipe
 # Runs the announcement-snipe bot on GitHub's cloud — no local machine needed.
 on:
   schedule:
-    - cron: "*/30 * * * *"     # every 30 min (GitHub may delay; min allowed is 5)
+    - cron: "*/10 * * * *"     # every 10 min (public repo = free unlimited minutes; GitHub may still delay)
   workflow_dispatch:            # lets you run it manually from the Actions tab
 
 permissions:
