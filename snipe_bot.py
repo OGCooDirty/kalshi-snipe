@@ -21,14 +21,16 @@ Config via env: KALSHI_ENV/KALSHI_API_KEY_ID/KALSHI_PRIVATE_KEY_PATH (auth),
 SNIPE_USD (default 4), SNIPE_MAX_EXPOSURE (default 15), SNIPE_FLOOR (default 20),
 SNIPE_DRY_RUN=1 (log instead of placing).
 """
-import os, re, json, time, html
+import os, re, json, time, html, datetime
+from email.utils import parsedate_to_datetime
 import httpx
 import server
 
 PER_SNIPE_USD = float(os.environ.get("SNIPE_USD", "4"))
 MAX_EXPOSURE = float(os.environ.get("SNIPE_MAX_EXPOSURE", "15"))
 FLOOR = float(os.environ.get("SNIPE_FLOOR", "20"))
-PRICE_HI, PRICE_LO = 0.90, 0.02
+PRICE_HI, PRICE_LO = 0.97, 0.10   # 10c floor: if market prices it a longshot, distrust the "confirmation"
+MAX_NEWS_AGE_DAYS = float(os.environ.get("SNIPE_NEWS_AGE_DAYS", "4"))  # ignore stale news
 DRY_RUN = os.environ.get("SNIPE_DRY_RUN") == "1"
 MAX_EVENTS_PER_SERIES = int(os.environ.get("SNIPE_MAX_PER_SERIES", "40"))
 
@@ -113,7 +115,7 @@ CONFIRM = [
     # castings
     "cast as", "to star as", "joins the cast", "has been cast",
 ]
-NEGATIVE = ["?", "odds", "betting", "could ", "might ", "rumor", "rumour",
+NEGATIVE = ["odds", "betting", "could ", "might ", "rumor", "rumour",
             "speculat", "potential", "possibl", "who will", "predict",
             "candidate", "contender", "favorite", "fans want", "petition",
             "kalshi", "polymarket", "wish", "hope", "expected to", "reportedly",
@@ -155,8 +157,21 @@ def get_news_items(query):
         r = httpx.get(url, timeout=20, follow_redirects=True,
                       headers={"User-Agent": "Mozilla/5.0"})
         if r.status_code == 200:
-            items = [html.unescape(it).lower()
-                     for it in re.findall(r"<item>(.*?)</item>", r.text, re.S | re.I)]
+            # Keep only recent items (kills stale/old articles). Strip <link>
+            # URLs — Google's redirect URLs contain "?" + base64 that pollute
+            # matching. Keep title/description/source (source has the domain).
+            now = datetime.datetime.now(datetime.timezone.utc)
+            for it in re.findall(r"<item>(.*?)</item>", r.text, re.S | re.I):
+                m = re.search(r"<pubDate>(.*?)</pubDate>", it, re.I)
+                if m:
+                    try:
+                        age = (now - parsedate_to_datetime(m.group(1))).total_seconds() / 86400
+                        if age > MAX_NEWS_AGE_DAYS:
+                            continue
+                    except Exception:
+                        pass
+                items.append(html.unescape(
+                    re.sub(r"<link>.*?</link>", " ", it, flags=re.S | re.I)).lower())
         else:
             log(f"news HTTP {r.status_code} for {query[:40]}")
     except Exception as e:
